@@ -1,40 +1,54 @@
-import altair as alt
-import numpy as np
-import pandas as pd
 import streamlit as st
+from PIL import Image
+import cairosvg
+import io
 
-"""
-# Welcome to Streamlit!
+def convert_to_svg(input_image):
+    # Convert PIL Image to PNG bytes
+    with io.BytesIO() as output_bytes:
+        input_image.save(output_bytes, format='PNG')
+        png_data = output_bytes.getvalue()
 
-Edit `/streamlit_app.py` to customize this app to your heart's desire :heart:.
-If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
-forums](https://discuss.streamlit.io).
+    # Convert PNG bytes to SVG
+    svg_data = cairosvg.png2svg(png_data)
+    return svg_data
 
-In the meantime, below is an example of what you can do with just a few lines of code:
-"""
+def save_image(image, format):
+    with io.BytesIO() as output_bytes:
+        image.save(output_bytes, format=format)
+        return output_bytes.getvalue()
 
-num_points = st.slider("Number of points in spiral", 1, 10000, 1100)
-num_turns = st.slider("Number of turns in spiral", 1, 300, 31)
+def main():
+    st.title("Image File Converter")
 
-indices = np.linspace(0, 1, num_points)
-theta = 2 * np.pi * num_turns * indices
-radius = indices
+    # Upload file
+    uploaded_file = st.file_uploader("Choose an image file", type=['png', 'jpg', 'jpeg', 'gif', 'bmp'])
 
-x = radius * np.cos(theta)
-y = radius * np.sin(theta)
+    if uploaded_file is not None:
+        # Display the uploaded image
+        image = Image.open(uploaded_file)
+        st.image(image, caption='Uploaded Image', use_column_width=True)
 
-df = pd.DataFrame({
-    "x": x,
-    "y": y,
-    "idx": indices,
-    "rand": np.random.randn(num_points),
-})
+        # Choose output format
+        format_options = ['SVG', 'PNG', 'JPG', 'GIF', 'BMP']
+        output_format = st.selectbox("Select Output Format", format_options)
 
-st.altair_chart(alt.Chart(df, height=700, width=700)
-    .mark_point(filled=True)
-    .encode(
-        x=alt.X("x", axis=None),
-        y=alt.Y("y", axis=None),
-        color=alt.Color("idx", legend=None, scale=alt.Scale()),
-        size=alt.Size("rand", legend=None, scale=alt.Scale(range=[1, 150])),
-    ))
+        if st.button("Convert"):
+            if output_format == 'SVG':
+                converted_data = convert_to_svg(image)
+                file_ext = 'svg'
+            else:
+                converted_data = save_image(image, output_format)
+                file_ext = output_format.lower()
+
+            # Create a download link
+            download_filename = f"converted_image.{file_ext}"
+            st.download_button(
+                label="Download Image",
+                data=converted_data,
+                file_name=download_filename,
+                mime=f"image/{file_ext}"
+            )
+
+if __name__ == "__main__":
+    main()
